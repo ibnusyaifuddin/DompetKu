@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DompetKu — Catatan Uang Pribadi</title>
+<meta name="description" content="Catat pemasukan dan pengeluaran pribadi, lihat saldo dan riwayat per periode.">
+<meta name="theme-color" content="#FBFBF8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="DompetKu">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-0: #FBFBF8;
+    --bg-1: #F2F1EA;
+    --surface: rgba(255,255,255,0.82);
+    --surface-hi: rgba(255,255,255,0.98);
+    --border: rgba(16,28,22,0.09);
+    --border-hi: rgba(16,28,22,0.16);
+    --text: #14211A;
+    --text-dim: rgba(20,33,26,0.62);
+    --text-faint: rgba(20,33,26,0.42);
+
+    --emerald: #17A47B;
+    --emerald-soft: rgba(23,164,123,0.12);
+    --coral: #E0584A;
+    --coral-soft: rgba(224,88,74,0.12);
+    --amber: #C98A16;
+    --amber-soft: rgba(201,138,22,0.14);
+
+    --card-shadow: 0 1px 2px rgba(16,28,22,0.04), 0 14px 30px -18px rgba(16,28,22,0.18);
+
+    --radius-lg: 22px;
+    --radius-md: 16px;
+    --radius-sm: 11px;
+
+    --font-display: 'Space Grotesk', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+
+    --ease: cubic-bezier(.16,.84,.44,1);
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+
+  body{
+    font-family: var(--font-body);
+    color: var(--text);
+    background:
+      radial-gradient(1100px 560px at 15% -10%, rgba(23,164,123,0.10), transparent 60%),
+      radial-gradient(900px 500px at 100% 10%, rgba(224,88,74,0.07), transparent 55%),
+      var(--bg-0);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  /* faint grain */
+  body::before{
+    content:"";
+    position: fixed; inset:0;
+    pointer-events:none;
+    opacity: 0.018;
+    z-index: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .app{
+    position: relative;
+    z-index: 1;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 24px 18px 70px;
+  }
+
+  ::selection{ background: var(--emerald-soft); color: var(--text); }
+
+  /* ---------- Header ---------- */
+  .app-header{
+    display:flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    gap: 12px;
+    animation: fadeDown .5s var(--ease) both;
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand-mark{
+    width: 38px; height:38px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--emerald), #1F8F6E);
+    display:flex; align-items:center; justify-content:center;
+    font-family: var(--font-display);
+    font-weight:700;
+    font-size: 16px;
+    color: #062019;
+    flex-shrink:0;
+    box-shadow: 0 6px 18px -6px rgba(62,210,160,0.55);
+  }
+  .brand h1{
+    font-family: var(--font-display);
+    font-size: 19px;
+    font-weight: 700;
+    margin:0;
+    letter-spacing: -0.2px;
+  }
+  .brand span{
+    display:block;
+    font-size: 11.5px;
+    color: var(--text-faint);
+    margin-top:1px;
+  }
+
+  .tabs{
+    position:relative;
+    display:flex;
+    gap:2px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 4px;
+    border-radius: 999px;
+    backdrop-filter: blur(14px);
+    box-shadow: var(--card-shadow);
+  }
+  .tab-indicator{
+    position:absolute;
+    top:4px; bottom:4px; left:4px;
+    width: calc(50% - 4px);
+    background: linear-gradient(135deg, var(--emerald), #22B98D);
+    border-radius: 999px;
+    transition: transform .35s var(--ease);
+    z-index:0;
+    box-shadow: 0 4px 14px -4px rgba(62,210,160,0.6);
+  }
+  .tab-btn{
+    position:relative;
+    z-index:1;
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    font-weight: 600;
+    border:none;
+    background: transparent;
+    color: var(--text-dim);
+    padding: 8px 16px;
+    border-radius: 999px;
+    cursor:pointer;
+    transition: color .25s ease;
+    white-space: nowrap;
+  }
+  .tab-btn.active{ color: #062019; }
+
+  /* ---------- Glass card base ---------- */
+  .card{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    backdrop-filter: blur(18px);
+    box-shadow: var(--card-shadow);
+    padding: 20px;
+    margin-bottom: 14px;
+    animation: fadeUp .55s var(--ease) both;
+  }
+  .card-title{
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    color: var(--text-dim);
+    margin: 0 0 14px 0;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .card-title .dot{
+    width:6px; height:6px; border-radius:50%;
+    background: var(--emerald);
+    box-shadow: 0 0 8px var(--emerald);
+  }
+
+  /* ---------- Hero balance ---------- */
+  .hero{
+    position:relative;
+    overflow:hidden;
+    text-align:center;
+    padding: 30px 20px 22px;
+  }
+  .hero::before{
+    content:"";
+    position:absolute;
+    width: 340px; height:340px;
+    left:50%; top:-60px;
+    transform: translateX(-50%);
+    background: radial-gradient(circle, var(--glow-color, var(--emerald)) 0%, transparent 68%);
+    opacity: 0.16;
+    filter: blur(14px);
+    animation: pulse 5s ease-in-out infinite;
+    pointer-events:none;
+  }
+  .hero-content{ position:relative; z-index:1; }
+  .hero-label{
+    font-size: 12px;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    font-weight:600;
+  }
+  .hero-amount{
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 42px;
+    letter-spacing: -0.5px;
+    margin: 8px 0 2px;
+    color: var(--text);
+  }
+  .hero-sub{
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--text-faint);
+    margin-bottom: 14px;
+  }
+  .sparkline{
+    width: 100%;
+    height: 46px;
+    margin-top: 6px;
+  }
+
+  /* ---------- Summary row ---------- */
+  .summary-row{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .summary-card{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    backdrop-filter: blur(18px);
+    box-shadow: var(--card-shadow);
+    padding: 16px;
+    transition: transform .25s var(--ease), border-color .25s ease;
+    animation: fadeUp .6s var(--ease) both;
+  }
+  .summary-card:hover{ transform: translateY(-2px); border-color: var(--border-hi); }
+  .summary-card .top-row{ display:flex; align-items:center; justify-content:space-between; }
+  .summary-card .lbl{
+    font-size: 11.5px;
+    color: var(--text-dim);
+    font-weight:600;
+  }
+  .icon-badge{
+    width: 26px; height:26px;
+    border-radius: 8px;
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+  .summary-card.income .icon-badge{ background: var(--emerald-soft); color: var(--emerald); }
+  .summary-card.expense .icon-badge{ background: var(--coral-soft); color: var(--coral); }
+  .summary-card .val{
+    font-family: var(--font-mono);
+    font-weight:700;
+    font-size: 19px;
+    margin-top:12px;
+  }
+  .summary-card.income .val{ color: var(--emerald); }
+  .summary-card.expense .val{ color: var(--coral); }
+  .summary-card .count{
+    font-size:11px;
+    color: var(--text-faint);
+    margin-top:4px;
+  }
+
+  /* ---------- Form ---------- */
+  .type-switch{
+    position:relative;
+    display:flex;
+    background: rgba(16,28,22,0.035);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 4px;
+    margin-bottom: 16px;
+  }
+  .type-switch-indicator{
+    position:absolute;
+    top:4px; bottom:4px; left:4px;
+    width: calc(50% - 4px);
+    border-radius: 9px;
+    transition: transform .3s var(--ease), background .3s ease;
+    background: linear-gradient(135deg, var(--emerald), #22B98D);
+    box-shadow: 0 4px 14px -4px rgba(62,210,160,0.55);
+  }
+  .type-switch button{
+    position:relative;
+    z-index:1;
+    flex:1;
+    border:none;
+    background: transparent;
+    padding: 10px;
+    font-family: var(--font-body);
+    font-weight:600;
+    font-size: 13.5px;
+    cursor:pointer;
+    color: var(--text-dim);
+    transition: color .25s ease;
+  }
+  .type-switch button.active{ color: #062019; }
+
+  .field{ margin-bottom: 12px; }
+  .field label{
+    display:block;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-faint);
+    margin-bottom: 7px;
+    letter-spacing: 0.2px;
+  }
+  .field input, .field select{
+    width:100%;
+    font-family: var(--font-body);
+    font-size: 15px;
+    padding: 11px 13px;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: #FFFFFF;
+    color: var(--text);
+    outline:none;
+    transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+  }
+  .field select{ color-scheme: light; }
+  .field input::placeholder{ color: var(--text-faint); }
+  .field input:focus, .field select:focus{
+    border-color: var(--emerald);
+    box-shadow: 0 0 0 3px var(--emerald-soft);
+    background: rgba(16,28,22,0.055);
+  }
+  .amount-field{ position:relative; }
+  .amount-field .prefix{
+    position:absolute;
+    left:13px; top:50%; transform:translateY(-50%);
+    font-family: var(--font-mono);
+    font-size:15px;
+    color: var(--text-faint);
+    pointer-events:none;
+  }
+  .amount-field input{
+    padding-left: 36px;
+    font-family: var(--font-mono);
+    font-weight:600;
+  }
+  .field-row{ display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .btn-primary{
+    width:100%;
+    padding: 13px;
+    border:none;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--emerald), #22B98D);
+    color: #062019;
+    font-family: var(--font-body);
+    font-weight:700;
+    font-size: 14.5px;
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    transition: transform .15s var(--ease), box-shadow .2s ease;
+    box-shadow: 0 8px 22px -8px rgba(62,210,160,0.6);
+  }
+  .btn-primary:hover{ transform: translateY(-1px); box-shadow: 0 12px 26px -8px rgba(62,210,160,0.7); }
+  .btn-primary:active{ transform: scale(0.98); }
+
+  /* ---------- Transaction list ---------- */
+  .tx-empty{
+    text-align:center;
+    padding: 34px 12px;
+    color: var(--text-faint);
+    font-size: 13.5px;
+  }
+  .tx-empty svg{ margin-bottom:10px; opacity:0.5; }
+
+  .date-group{ margin-bottom: 4px; }
+  .date-group-label{
+    font-size: 11px;
+    font-weight:600;
+    letter-spacing: 0.4px;
+    color: var(--amber);
+    margin: 16px 0 6px;
+    text-transform: capitalize;
+  }
+  .date-group:first-child .date-group-label{ margin-top:0; }
+
+  .tx-row{
+    display:flex;
+    align-items:center;
+    gap: 12px;
+    padding: 10px;
+    border-radius: 13px;
+    margin-bottom: 4px;
+    transition: background .2s ease, transform .2s ease;
+  }
+  .tx-row:hover{ background: rgba(16,28,22,0.04); transform: translateX(2px); }
+  .tx-icon{
+    width: 38px; height:38px;
+    border-radius: 11px;
+    flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size: 16px;
+    background: var(--emerald-soft);
+  }
+  .tx-row.keluar .tx-icon{ background: var(--coral-soft); }
+  .tx-body{ flex:1; min-width:0; }
+  .tx-desc{
+    font-size: 14px;
+    font-weight:600;
+    color: var(--text);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .tx-meta{
+    font-size: 11.5px;
+    color: var(--text-faint);
+    margin-top: 2px;
+  }
+  .tx-amount{
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 14px;
+    white-space:nowrap;
+    color: var(--emerald);
+  }
+  .tx-row.keluar .tx-amount{ color: var(--coral); }
+
+  .tx-del{
+    border:none;
+    background:transparent;
+    cursor:pointer;
+    color: var(--text-faint);
+    padding: 7px;
+    border-radius: 9px;
+    display:flex;
+    flex-shrink:0;
+    transition: background .18s ease, color .18s ease;
+  }
+  .tx-del:hover{ background: var(--coral-soft); color: var(--coral); }
+  .tx-del.confirm{ background: var(--coral); color:#fff; }
+
+  .see-all{
+    display:block;
+    width:100%;
+    text-align:center;
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    font-weight:600;
+    color: var(--emerald);
+    padding: 13px;
+    margin-top: 6px;
+    border-radius: 11px;
+    border: 1px dashed var(--border-hi);
+    background: transparent;
+    cursor:pointer;
+    transition: background .2s ease, border-color .2s ease;
+  }
+  .see-all:hover{ background: var(--emerald-soft); border-color: var(--emerald); }
+
+  /* ---------- Riwayat filter ---------- */
+  .chip-row{ display:flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .chip{
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: rgba(16,28,22,0.035);
+    color: var(--text-dim);
+    cursor:pointer;
+    transition: background .2s ease, color .2s ease, border-color .2s ease, transform .15s ease;
+  }
+  .chip:hover{ transform: translateY(-1px); }
+  .chip.active{
+    background: linear-gradient(135deg, var(--emerald), #22B98D);
+    border-color: transparent;
+    color: #062019;
+  }
+  .custom-range{ display:flex; align-items:flex-end; gap: 10px; }
+  .custom-range .field{ flex:1; margin-bottom:0; }
+  .custom-range button{
+    padding: 11px 18px;
+    border-radius: 11px;
+    border: 1px solid var(--border-hi);
+    background: transparent;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-weight:600;
+    font-size: 13px;
+    cursor:pointer;
+    white-space:nowrap;
+    transition: background .2s ease, border-color .2s ease;
+  }
+  .custom-range button:hover{ background: var(--surface-hi); border-color: var(--emerald); }
+
+  .period-summary{ display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .period-summary .cell{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    backdrop-filter: blur(18px);
+    box-shadow: var(--card-shadow);
+    padding: 13px 10px;
+    text-align:center;
+  }
+  .period-summary .cell .lbl{ font-size: 10.5px; font-weight:600; color: var(--text-faint); }
+  .period-summary .cell .val{
+    font-family: var(--font-mono);
+    font-weight:700;
+    font-size: 13.5px;
+    margin-top: 6px;
+    word-break: break-word;
+  }
+  .period-summary .cell.income .val{ color: var(--emerald); }
+  .period-summary .cell.expense .val{ color: var(--coral); }
+
+  footer.hint{
+    text-align:center;
+    font-size: 11px;
+    color: var(--text-faint);
+    margin-top: 22px;
+    line-height:1.6;
+  }
+
+  .view{ display:none; }
+  .view.active{ display:block; }
+
+  @keyframes fadeUp{ from{ opacity:0; transform: translateY(10px);} to{ opacity:1; transform:translateY(0);} }
+  @keyframes fadeDown{ from{ opacity:0; transform: translateY(-8px);} to{ opacity:1; transform:translateY(0);} }
+  @keyframes pulse{ 0%,100%{ opacity:0.22; transform: translateX(-50%) scale(1);} 50%{ opacity:0.34; transform: translateX(-50%) scale(1.06);} }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation: none !important; transition: none !important; }
+  }
+
+  @media (max-width: 420px){
+    .hero-amount{ font-size: 32px; }
+    .brand h1{ font-size: 17px; }
+    .period-summary{ grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="app-header">
+    <div class="brand">
+      <div class="brand-mark">Rp</div>
+      <div>
+        <h1>DompetKu</h1>
+        <span id="todayLabel">Catatan uang pribadi</span>
+      </div>
+    </div>
+    <div class="tabs" id="tabsWrap">
+      <div class="tab-indicator" id="tabIndicator"></div>
+      <button class="tab-btn active" data-view="beranda">Beranda</button>
+      <button class="tab-btn" data-view="riwayat">Riwayat</button>
+    </div>
+  </div>
+
+  <!-- ===================== BERANDA ===================== -->
+  <div class="view active" id="view-beranda">
+
+    <div class="card hero" id="heroCard" style="animation-delay:.05s">
+      <div class="hero-content">
+        <div class="hero-label">Saldo Anda</div>
+        <div class="hero-amount" id="saldoAmount">Rp 0</div>
+        <div class="hero-sub" id="lastUpdated">Belum ada transaksi tercatat</div>
+        <svg class="sparkline" id="sparkline" viewBox="0 0 300 46" preserveAspectRatio="none"></svg>
+      </div>
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-card income" style="animation-delay:.1s">
+        <div class="top-row">
+          <span class="lbl">Pemasukan</span>
+          <span class="icon-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></span>
+        </div>
+        <div class="val" id="incomeMonth">Rp 0</div>
+        <div class="count" id="incomeCount">0 transaksi bulan ini</div>
+      </div>
+      <div class="summary-card expense" style="animation-delay:.15s">
+        <div class="top-row">
+          <span class="lbl">Pengeluaran</span>
+          <span class="icon-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></span>
+        </div>
+        <div class="val" id="expenseMonth">Rp 0</div>
+        <div class="count" id="expenseCount">0 transaksi bulan ini</div>
+      </div>
+    </div>
+
+    <div class="card" style="animation-delay:.2s">
+      <div class="card-title"><span class="dot"></span>Catat transaksi</div>
+      <div class="type-switch" id="typeSwitch">
+        <div class="type-switch-indicator" id="typeIndicator"></div>
+        <button type="button" class="active" data-type="masuk">Pemasukan</button>
+        <button type="button" data-type="keluar">Pengeluaran</button>
+      </div>
+      <div class="field amount-field">
+        <label>Jumlah</label>
+        <span class="prefix">Rp</span>
+        <input type="text" inputmode="numeric" id="amountInput" placeholder="0">
+      </div>
+      <div class="field">
+        <label>Keterangan</label>
+        <input type="text" id="descInput" placeholder="Contoh: Makan siang, Gaji Juli">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Kategori</label>
+          <select id="categoryInput"></select>
+        </div>
+        <div class="field">
+          <label>Tanggal</label>
+          <input type="date" id="dateInput">
+        </div>
+      </div>
+      <button class="btn-primary" id="submitBtn">
+        Catat transaksi
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </button>
+    </div>
+
+    <div class="card" style="animation-delay:.25s">
+      <div class="card-title"><span class="dot"></span>Transaksi terbaru</div>
+      <div id="recentList"></div>
+      <button class="see-all" id="seeAllBtn">Lihat semua riwayat →</button>
+    </div>
+
+  </div>
+
+  <!-- ===================== RIWAYAT ===================== -->
+  <div class="view" id="view-riwayat">
+
+    <div class="card" style="animation-delay:.05s">
+      <div class="card-title"><span class="dot"></span>Filter periode</div>
+      <div class="chip-row" id="periodChips">
+        <button class="chip active" data-period="hari">Hari ini</button>
+        <button class="chip" data-period="minggu">Minggu ini</button>
+        <button class="chip" data-period="bulan">Bulan ini</button>
+        <button class="chip" data-period="tahun">Tahun ini</button>
+        <button class="chip" data-period="semua">Semua</button>
+      </div>
+      <div class="custom-range">
+        <div class="field">
+          <label>Dari</label>
+          <input type="date" id="rangeFrom">
+        </div>
+        <div class="field">
+          <label>Sampai</label>
+          <input type="date" id="rangeTo">
+        </div>
+        <button id="applyRange">Terapkan</button>
+      </div>
+    </div>
+
+    <div class="period-summary">
+      <div class="cell income" style="animation-delay:.1s">
+        <div class="lbl">Masuk</div>
+        <div class="val" id="periodIncome">Rp 0</div>
+      </div>
+      <div class="cell expense" style="animation-delay:.15s">
+        <div class="lbl">Keluar</div>
+        <div class="val" id="periodExpense">Rp 0</div>
+      </div>
+      <div class="cell" style="animation-delay:.2s">
+        <div class="lbl">Bersih</div>
+        <div class="val" id="periodNet">Rp 0</div>
+      </div>
+    </div>
+
+    <div class="card" style="animation-delay:.2s">
+      <div class="card-title" id="periodLabel"><span class="dot"></span>Riwayat — Hari ini</div>
+      <div id="historyList"></div>
+    </div>
+
+  </div>
+
+  <footer class="hint">Data tersimpan otomatis di perangkat ini · DompetKu — Catatan Uang Pribadi</footer>
+</div>
+
+<script>
+(function(){
+  const CATEGORIES = {
+    masuk: ['Gaji','Bonus','Investasi','Hadiah','Lainnya'],
+    keluar: ['Makan','Transport','Belanja','Tagihan','Hiburan','Kesehatan','Pendidikan','Lainnya']
+  };
+  const ICONS = {
+    'Gaji':'💼','Bonus':'🎁','Investasi':'📈','Hadiah':'🎉',
+    'Makan':'🍚','Transport':'🚗','Belanja':'🛍️','Tagihan':'🧾',
+    'Hiburan':'🎬','Kesehatan':'💊','Pendidikan':'📚','Lainnya':'✳️'
+  };
+
+  let transactions = [];
+  let currentType = 'masuk';
+  let currentPeriod = 'hari';
+  let customRange = null;
+  let pendingDeleteId = null;
+  let pendingDeleteTimer = null;
+
+  const $ = (sel, el) => (el || document).querySelector(sel);
+  const $$ = (sel, el) => Array.from((el || document).querySelectorAll(sel));
+
+  function rupiah(n){
+    const sign = n < 0 ? '-' : '';
+    return sign + 'Rp ' + Math.abs(Math.round(n)).toLocaleString('id-ID');
+  }
+
+  function todayStr(){ return new Date().toISOString().slice(0,10); }
+  function uid(){ return 'tx_' + Date.now() + '_' + Math.random().toString(36).slice(2,8); }
+
+  // ---------- storage (localStorage — data tersimpan di perangkat/browser ini) ----------
+  async function loadTransactions(){
+    try{
+      let raw = localStorage.getItem('dompetku:transactions');
+      if(!raw){
+        // migrasi dari nama lama (Alur) kalau ada, supaya data lama tidak hilang
+        const legacy = localStorage.getItem('alur:transactions');
+        if(legacy){ raw = legacy; localStorage.setItem('dompetku:transactions', legacy); }
+      }
+      if(raw) transactions = JSON.parse(raw);
+    }catch(e){ transactions = []; }
+  }
+  async function saveTransactions(){
+    try{ localStorage.setItem('dompetku:transactions', JSON.stringify(transactions)); }
+    catch(e){ console.error('Gagal menyimpan data', e); }
+  }
+
+  // ---------- category select ----------
+  function populateCategories(){
+    const sel = $('#categoryInput');
+    sel.innerHTML = '';
+    CATEGORIES[currentType].forEach(cat => {
+      const opt = document.createElement('option');
+      opt.value = cat; opt.textContent = cat;
+      sel.appendChild(opt);
+    });
+  }
+
+  // ---------- type switch (with sliding pill) ----------
+  const typeIndicator = $('#typeIndicator');
+  $$('.type-switch button', $('#typeSwitch')).forEach((btn, idx) => {
+    btn.addEventListener('click', () => {
+      $$('.type-switch button', $('#typeSwitch')).forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentType = btn.dataset.type;
+      typeIndicator.style.transform = idx === 0 ? 'translateX(0)' : 'translateX(100%)';
+      populateCategories();
+    });
+  });
+
+  // ---------- tabs (with sliding pill) ----------
+  const tabIndicator = $('#tabIndicator');
+  $$('.tab-btn').forEach((btn, idx) => {
+    btn.addEventListener('click', () => {
+      switchView(btn.dataset.view);
+      tabIndicator.style.transform = idx === 0 ? 'translateX(0)' : 'translateX(100%)';
+    });
+  });
+  $('#seeAllBtn').addEventListener('click', () => {
+    switchView('riwayat');
+    tabIndicator.style.transform = 'translateX(100%)';
+    $$('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.view === 'riwayat'));
+  });
+
+  function switchView(view){
+    $$('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+    $$('.view').forEach(v => v.classList.remove('active'));
+    $('#view-' + view).classList.add('active');
+    if(view === 'riwayat') renderHistory();
+  }
+
+  // ---------- amount formatting ----------
+  const amountInput = $('#amountInput');
+  amountInput.addEventListener('input', () => {
+    let raw = amountInput.value.replace(/[^\d]/g,'');
+    amountInput.dataset.raw = raw;
+    amountInput.value = raw ? Number(raw).toLocaleString('id-ID') : '';
+  });
+
+  // ---------- add transaction ----------
+  $('#submitBtn').addEventListener('click', async () => {
+    const raw = amountInput.dataset.raw;
+    const amount = raw ? parseInt(raw, 10) : 0;
+    const desc = $('#descInput').value.trim();
+    const category = $('#categoryInput').value;
+    const date = $('#dateInput').value || todayStr();
+
+    if(!amount || amount <= 0){ flashInvalid(amountInput); return; }
+    if(!desc){ flashInvalid($('#descInput')); return; }
+
+    transactions.push({
+      id: uid(), type: currentType, amount, desc, category, date, createdAt: Date.now()
+    });
+
+    await saveTransactions();
+
+    amountInput.value = ''; amountInput.dataset.raw = '';
+    $('#descInput').value = '';
+    $('#dateInput').value = todayStr();
+
+    renderAll();
+  });
+
+  function flashInvalid(el){
+    el.style.borderColor = 'var(--coral)';
+    el.focus();
+    setTimeout(() => { el.style.borderColor = ''; }, 900);
+  }
+
+  // ---------- delete ----------
+  function requestDelete(id){
+    if(pendingDeleteId === id){
+      clearTimeout(pendingDeleteTimer);
+      transactions = transactions.filter(t => t.id !== id);
+      pendingDeleteId = null;
+      saveTransactions().then(renderAll);
+      return;
+    }
+    pendingDeleteId = id;
+    clearTimeout(pendingDeleteTimer);
+    renderAll();
+    pendingDeleteTimer = setTimeout(() => { pendingDeleteId = null; renderAll(); }, 2800);
+  }
+
+  // ---------- period filter ----------
+  $$('.chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      $$('.chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      currentPeriod = chip.dataset.period;
+      customRange = null;
+      $('#rangeFrom').value = ''; $('#rangeTo').value = '';
+      renderHistory();
+    });
+  });
+  $('#applyRange').addEventListener('click', () => {
+    const from = $('#rangeFrom').value, to = $('#rangeTo').value;
+    if(!from || !to) return;
+    customRange = { from, to };
+    $$('.chip').forEach(c => c.classList.remove('active'));
+    renderHistory();
+  });
+
+  function getPeriodRange(){
+    if(customRange) return customRange;
+    const now = new Date();
+    const y = now.getFullYear(), m = now.getMonth(), d = now.getDate();
+    let from, to;
+    const toStr = (dt) => dt.toISOString().slice(0,10);
+    if(currentPeriod === 'hari'){ from = to = toStr(now); }
+    else if(currentPeriod === 'minggu'){
+      const day = now.getDay() === 0 ? 7 : now.getDay();
+      from = toStr(new Date(y, m, d - day + 1));
+      to = toStr(new Date(y, m, d - day + 7));
+    } else if(currentPeriod === 'bulan'){
+      from = toStr(new Date(y, m, 1)); to = toStr(new Date(y, m + 1, 0));
+    } else if(currentPeriod === 'tahun'){
+      from = toStr(new Date(y, 0, 1)); to = toStr(new Date(y, 11, 31));
+    } else { from = '0000-01-01'; to = '9999-12-31'; }
+    return { from, to };
+  }
+
+  const PERIOD_LABELS = { hari:'Hari ini', minggu:'Minggu ini', bulan:'Bulan ini', tahun:'Tahun ini', semua:'Semua' };
+
+  function fmtDateLong(dateStr){
+    return new Date(dateStr + 'T00:00:00').toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  }
+  function fmtDateShort(dateStr){
+    return new Date(dateStr + 'T00:00:00').toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' });
+  }
+  function escapeHtml(s){ const div = document.createElement('div'); div.textContent = s; return div.innerHTML; }
+
+  function txRowHtml(t){
+    const isConfirm = pendingDeleteId === t.id;
+    const sign = t.type === 'masuk' ? '+' : '-';
+    return `
+      <div class="tx-row ${t.type}">
+        <div class="tx-icon">${ICONS[t.category] || '✳️'}</div>
+        <div class="tx-body">
+          <div class="tx-desc">${escapeHtml(t.desc)}</div>
+          <div class="tx-meta">${t.category} · ${fmtDateShort(t.date)}</div>
+        </div>
+        <div class="tx-amount">${sign} ${rupiah(t.amount)}</div>
+        <button class="tx-del ${isConfirm ? 'confirm':''}" data-id="${t.id}" title="${isConfirm ? 'Klik lagi untuk hapus' : 'Hapus'}">
+          ${isConfirm
+            ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
+            : '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>'
+          }
+        </button>
+      </div>`;
+  }
+
+  function attachDeleteHandlers(container){
+    $$('.tx-del', container).forEach(btn => btn.addEventListener('click', () => requestDelete(btn.dataset.id)));
+  }
+
+  // ---------- count-up animation ----------
+  let displayedSaldo = null;
+  function animateSaldo(target){
+    const el = $('#saldoAmount');
+    const start = displayedSaldo === null ? 0 : displayedSaldo;
+    const duration = 650;
+    const t0 = performance.now();
+    function step(now){
+      const p = Math.min(1, (now - t0) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      const val = start + (target - start) * eased;
+      el.textContent = rupiah(val);
+      if(p < 1) requestAnimationFrame(step);
+      else { el.textContent = rupiah(target); displayedSaldo = target; }
+    }
+    requestAnimationFrame(step);
+  }
+
+  // ---------- sparkline (last 7 days net flow) ----------
+  function renderSparkline(){
+    const svg = $('#sparkline');
+    const days = [];
+    for(let i = 6; i >= 0; i--){
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0,10);
+      const net = transactions.filter(t => t.date === key)
+        .reduce((s,t) => s + (t.type === 'masuk' ? t.amount : -t.amount), 0);
+      days.push(net);
+    }
+    const max = Math.max(...days.map(Math.abs), 1);
+    const w = 300, h = 46, mid = h / 2, step = w / (days.length - 1);
+    const pts = days.map((v, i) => {
+      const x = i * step;
+      const y = mid - (v / max) * (mid - 6);
+      return [x, y];
+    });
+    let path = `M ${pts[0][0]} ${pts[0][1]}`;
+    for(let i = 1; i < pts.length; i++){
+      const [x0,y0] = pts[i-1], [x1,y1] = pts[i];
+      const cx = (x0 + x1) / 2;
+      path += ` C ${cx} ${y0}, ${cx} ${y1}, ${x1} ${y1}`;
+    }
+    const areaPath = path + ` L ${w} ${h} L 0 ${h} Z`;
+    const totalNet = days.reduce((a,b) => a+b, 0);
+    const color = totalNet < 0 ? 'var(--coral)' : 'var(--emerald)';
+    svg.innerHTML = `
+      <defs>
+        <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${totalNet < 0 ? '#FF7A6E' : '#3ED2A0'}" stop-opacity="0.35"/>
+          <stop offset="100%" stop-color="${totalNet < 0 ? '#FF7A6E' : '#3ED2A0'}" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <line x1="0" y1="${mid}" x2="${w}" y2="${mid}" stroke="rgba(16,28,22,0.12)" stroke-width="1"/>
+      <path d="${areaPath}" fill="url(#sparkFill)" stroke="none"/>
+      <path d="${path}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"/>
+    `;
+  }
+
+  function renderHero(){
+    const saldo = transactions.reduce((s,t) => s + (t.type === 'masuk' ? t.amount : -t.amount), 0);
+    $('#heroCard').style.setProperty('--glow-color', saldo < 0 ? 'var(--coral)' : 'var(--emerald)');
+    animateSaldo(saldo);
+    if(transactions.length === 0){
+      $('#lastUpdated').textContent = 'Belum ada transaksi tercatat';
+    } else {
+      const last = transactions.reduce((a,b) => a.createdAt > b.createdAt ? a : b);
+      $('#lastUpdated').textContent = 'Diperbarui · ' + fmtDateLong(last.date);
+    }
+    renderSparkline();
+  }
+
+  function renderMonthSummary(){
+    const now = new Date(), y = now.getFullYear(), m = now.getMonth();
+    const inMonth = transactions.filter(t => {
+      const d = new Date(t.date + 'T00:00:00');
+      return d.getFullYear() === y && d.getMonth() === m;
+    });
+    const income = inMonth.filter(t => t.type === 'masuk');
+    const expense = inMonth.filter(t => t.type === 'keluar');
+    $('#incomeMonth').textContent = rupiah(income.reduce((s,t) => s + t.amount, 0));
+    $('#expenseMonth').textContent = rupiah(expense.reduce((s,t) => s + t.amount, 0));
+    $('#incomeCount').textContent = income.length + ' transaksi bulan ini';
+    $('#expenseCount').textContent = expense.length + ' transaksi bulan ini';
+  }
+
+  function renderRecent(){
+    const list = $('#recentList');
+    const recent = [...transactions].sort((a,b) => b.createdAt - a.createdAt).slice(0, 6);
+    if(recent.length === 0){
+      list.innerHTML = `<div class="tx-empty">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/><path d="M7 15h4"/></svg>
+        <div>Belum ada transaksi. Catat yang pertama di atas.</div>
+      </div>`;
+      return;
+    }
+    list.innerHTML = recent.map(txRowHtml).join('');
+    attachDeleteHandlers(list);
+  }
+
+  function renderHistory(){
+    const { from, to } = getPeriodRange();
+    $('#periodLabel').innerHTML = '<span class="dot"></span>Riwayat — ' +
+      (customRange ? (fmtDateShort(customRange.from) + ' – ' + fmtDateShort(customRange.to)) : PERIOD_LABELS[currentPeriod]);
+
+    const filtered = transactions.filter(t => t.date >= from && t.date <= to);
+    const income = filtered.filter(t => t.type === 'masuk').reduce((s,t) => s + t.amount, 0);
+    const expense = filtered.filter(t => t.type === 'keluar').reduce((s,t) => s + t.amount, 0);
+    $('#periodIncome').textContent = rupiah(income);
+    $('#periodExpense').textContent = rupiah(expense);
+    $('#periodNet').textContent = rupiah(income - expense);
+
+    const container = $('#historyList');
+    if(filtered.length === 0){
+      container.innerHTML = `<div class="tx-empty">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/><path d="M7 15h4"/></svg>
+        <div>Tidak ada transaksi pada periode ini.</div>
+      </div>`;
+      return;
+    }
+
+    const sorted = [...filtered].sort((a,b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
+    const groups = {}, order = [];
+    sorted.forEach(t => { if(!groups[t.date]){ groups[t.date] = []; order.push(t.date); } groups[t.date].push(t); });
+
+    container.innerHTML = order.map(date => `
+      <div class="date-group">
+        <div class="date-group-label">${fmtDateLong(date)}</div>
+        ${groups[date].map(txRowHtml).join('')}
+      </div>
+    `).join('');
+    attachDeleteHandlers(container);
+  }
+
+  function renderAll(){
+    renderHero();
+    renderMonthSummary();
+    renderRecent();
+    if($('#view-riwayat').classList.contains('active')) renderHistory();
+  }
+
+  async function init(){
+    $('#dateInput').value = todayStr();
+    populateCategories();
+    $('#todayLabel').textContent = new Date().toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' });
+    await loadTransactions();
+    renderAll();
+  }
+
+  init();
+})();
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
